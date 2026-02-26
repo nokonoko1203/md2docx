@@ -16,15 +16,15 @@ use crate::config::Config;
 // README.md の設定例も同様。変更時は 3 箇所を合わせて更新する。
 #[derive(Parser)]
 #[command(
-    name = "md2word",
+    name = "md2docx",
     version,
     about = "Markdown ファイルを Word (.docx) に変換する CLI ツール",
     after_long_help = "\
 使用例:
-  md2word document.md                          入力と同名の .docx を生成
-  md2word document.md -o report.docx           出力先を指定
-  md2word document.md -c md2word.toml          設定ファイルを指定
-  md2word document.md -o out.docx -c my.toml   両方指定
+  md2docx document.md                          入力と同名の .docx を生成
+  md2docx document.md -o report.docx           出力先を指定
+  md2docx document.md -c md2docx.toml          設定ファイルを指定
+  md2docx document.md -o out.docx -c my.toml   両方指定
 
 設定ファイル (TOML):
   省略時はデフォルト値が使われます。全項目省略可能。

@@ -1,4 +1,4 @@
-# md2word
+# md2docx
 
 MarkdownファイルをWord(.docx)に変換するCLIツール。
 
@@ -12,7 +12,7 @@ Rust 1.70以上が必要。
 cargo install --path .
 ```
 
-$HOME/.cargo/bin/md2wordにバイナリが入る。PATHが通っていなければ、~/.zshrcなどに次の行を足す。
+$HOME/.cargo/bin/md2docxにバイナリが入る。PATHが通っていなければ、~/.zshrcなどに次の行を足す。
 
 ```sh
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -24,32 +24,37 @@ export PATH="$HOME/.cargo/bin:$PATH"
 cargo build --release
 ```
 
-バイナリはtarget/release/md2wordに生成される。
+バイナリはtarget/release/md2docxに生成される。
 
 ## 使い方
 
 ```sh
-md2word <入力ファイル> [オプション]
+md2docx <入力ファイル> [オプション]
 ```
 
-md2word --helpで詳細を確認できる。
+md2docx --helpで詳細を確認できる。
 
--o, --output でファイルの出力先を指定する。省略すると入力ファイル名の拡張子を.docxに変えたものになる。-c, --config で設定ファイルを指定する。省略するとデフォルト設定が使われる。-h, --help でヘルプを表示し、--helpなら設定ファイルの書式も出る。-V, --version でバージョンを確認できる。
+| オプション | 説明 |
+|---|---|
+| `-o, --output` | 出力先を指定する。省略すると入力ファイル名の拡張子を `.docx` に変えたものになる。 |
+| `-c, --config` | 設定ファイル (TOML) を指定する。省略するとデフォルト設定が使われる。 |
+| `-h, --help` | ヘルプを表示する。`--help` なら設定ファイルの書式も出る。 |
+| `-V, --version` | バージョンを確認する。 |
 
 ```sh
 # 基本的な変換（document.docxが生成される）
-md2word document.md
+md2docx document.md
 
 # 出力先を指定
-md2word document.md -o output.docx
+md2docx document.md -o output.docx
 
 # 設定ファイルを指定
-md2word document.md -o output.docx -c md2word.toml
+md2docx document.md -o output.docx -c md2docx.toml
 ```
 
 ## 設定ファイル
 
-TOML形式でフォントやサイズをカスタマイズできる。すべての項目は省略可能で、省略した項目にはデフォルト値が入る。全項目とデフォルト値はmd2word --helpで確認できる。
+TOML形式でフォントやサイズをカスタマイズできる。すべての項目は省略可能で、省略した項目にはデフォルト値が入る。全項目とデフォルト値はmd2docx --helpで確認できる。
 
 ```toml
 [fonts]

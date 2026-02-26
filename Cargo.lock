@@ -678,7 +678,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "md2word"
+name = "md2docx"
 version = "0.1.0"
 dependencies = [
  "anyhow",
