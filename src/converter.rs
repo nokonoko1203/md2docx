@@ -26,6 +26,15 @@ struct ConvertContext<'a> {
     config: &'a Config,
     base_path: &'a Path,
     heading_mgr: HeadingManager,
+    /// 現在の H1 章番号（0 = H1 未出現）
+    chapter_number: u32,
+    /// 章内の図カウンタ
+    figure_in_chapter: u32,
+    /// 章内の表カウンタ
+    table_in_chapter: u32,
+    /// グローバル連番（sequential モード用）
+    figure_seq: u32,
+    table_seq: u32,
 }
 
 impl<'a> ConvertContext<'a> {
@@ -34,6 +43,11 @@ impl<'a> ConvertContext<'a> {
             config,
             base_path,
             heading_mgr: HeadingManager::new(),
+            chapter_number: 0,
+            figure_in_chapter: 0,
+            table_in_chapter: 0,
+            figure_seq: 0,
+            table_seq: 0,
         }
     }
 
@@ -70,6 +84,13 @@ impl<'a> ConvertContext<'a> {
         // heading_mgr のカウンタを進める（番号同期のため）
         let _ = self.heading_mgr.next_heading(level, content);
 
+        // H1 出現時: 章番号を更新し、章内カウンタをリセット
+        if level == 1 {
+            self.chapter_number = self.heading_mgr.current_h1_number();
+            self.figure_in_chapter = 0;
+            self.table_in_chapter = 0;
+        }
+
         // テキストから既存の番号部分を除去
         let plain_text: String = content.iter().map(|i| i.to_plain_text()).collect();
         let display_text = self.heading_mgr.strip_number(level, plain_text.trim());
@@ -91,6 +112,32 @@ impl<'a> ConvertContext<'a> {
             .keep_next(true);
 
         docx.add_paragraph(para)
+    }
+
+    /// 図番号文字列を生成（chapter: "1.2", sequential: "2"）
+    fn next_figure_number(&mut self) -> String {
+        self.figure_seq += 1;
+        self.figure_in_chapter += 1;
+        match self.config.numbering.figure_format.as_str() {
+            "chapter" => {
+                let ch = if self.chapter_number == 0 { 1 } else { self.chapter_number };
+                format!("{}.{}", ch, self.figure_in_chapter)
+            }
+            _ => format!("{}", self.figure_seq),
+        }
+    }
+
+    /// 表番号文字列を生成（chapter: "1.2", sequential: "2"）
+    fn next_table_number(&mut self) -> String {
+        self.table_seq += 1;
+        self.table_in_chapter += 1;
+        match self.config.numbering.table_format.as_str() {
+            "chapter" => {
+                let ch = if self.chapter_number == 0 { 1 } else { self.chapter_number };
+                format!("{}.{}", ch, self.table_in_chapter)
+            }
+            _ => format!("{}", self.table_seq),
+        }
     }
 
     fn convert_paragraph(&self, docx: Docx, content: &[Inline]) -> Docx {
@@ -267,7 +314,7 @@ impl<'a> ConvertContext<'a> {
         rows: &[Vec<Vec<Inline>>],
         _alignments: &[crate::ir::Alignment], // TODO: テーブルアライメント未対応
     ) -> Docx {
-        // 表番号キャプション（Word SEQ フィールド）
+        // 表番号キャプション
         let caption_fonts = RunFonts::new()
             .ascii(&self.config.fonts.heading_en)
             .hi_ansi(&self.config.fonts.heading_en)
@@ -275,28 +322,44 @@ impl<'a> ConvertContext<'a> {
             .cs(&self.config.fonts.heading_en);
         let body_size = styles::pt_to_half_point(self.config.sizes.body);
 
-        // "表" ラベル（太字・見出しフォント）
-        let label_run = Run::new()
-            .add_text("表")
-            .size(body_size)
-            .bold()
-            .fonts(caption_fonts.clone());
+        let table_number = self.next_table_number();
 
-        // SEQ Table フィールド
-        let seq_run = Run::new()
-            .add_field_char(FieldCharType::Begin, true)
-            .add_instr_text(InstrText::Unsupported(" SEQ Table \\* ARABIC ".to_string()))
-            .add_field_char(FieldCharType::Separate, false)
-            .add_text("1")
-            .add_field_char(FieldCharType::End, false)
-            .size(body_size)
-            .bold()
-            .fonts(caption_fonts);
-
-        let caption_para = Paragraph::new()
-            .add_run(label_run)
-            .add_run(seq_run)
-            .align(AlignmentType::Center);
+        let caption_para = match self.config.numbering.table_format.as_str() {
+            "chapter" => {
+                // 章番号モード: "表X.Y" をプレーンテキストで生成
+                let label_run = Run::new()
+                    .add_text(format!("表{}", table_number))
+                    .size(body_size)
+                    .bold()
+                    .fonts(caption_fonts);
+                Paragraph::new()
+                    .add_run(label_run)
+                    .align(AlignmentType::Center)
+            }
+            _ => {
+                // 連番モード: Word SEQ フィールドを使用
+                let label_run = Run::new()
+                    .add_text("表")
+                    .size(body_size)
+                    .bold()
+                    .fonts(caption_fonts.clone());
+                let seq_run = Run::new()
+                    .add_field_char(FieldCharType::Begin, true)
+                    .add_instr_text(InstrText::Unsupported(
+                        " SEQ Table \\* ARABIC ".to_string(),
+                    ))
+                    .add_field_char(FieldCharType::Separate, false)
+                    .add_text(&table_number)
+                    .add_field_char(FieldCharType::End, false)
+                    .size(body_size)
+                    .bold()
+                    .fonts(caption_fonts);
+                Paragraph::new()
+                    .add_run(label_run)
+                    .add_run(seq_run)
+                    .align(AlignmentType::Center)
+            }
+        };
 
         let docx = docx.add_paragraph(caption_para);
 
@@ -398,7 +461,7 @@ impl<'a> ConvertContext<'a> {
 
         let docx = docx.add_paragraph(image_para);
 
-        // 図番号キャプション（Word SEQ フィールド）
+        // 図番号キャプション
         let caption_fonts = RunFonts::new()
             .ascii(&self.config.fonts.body_en)
             .hi_ansi(&self.config.fonts.body_en)
@@ -406,28 +469,41 @@ impl<'a> ConvertContext<'a> {
             .cs(&self.config.fonts.body_en);
         let body_size = styles::pt_to_half_point(self.config.sizes.body);
 
-        // "図" ラベル
-        let label_run = Run::new()
-            .add_text("図")
-            .size(body_size)
-            .fonts(caption_fonts.clone());
+        let figure_number = self.next_figure_number();
 
-        // SEQ Figure フィールド
-        let seq_run = Run::new()
-            .add_field_char(FieldCharType::Begin, true)
-            .add_instr_text(InstrText::Unsupported(
-                " SEQ Figure \\* ARABIC ".to_string(),
-            ))
-            .add_field_char(FieldCharType::Separate, false)
-            .add_text("1")
-            .add_field_char(FieldCharType::End, false)
-            .size(body_size)
-            .fonts(caption_fonts.clone());
-
-        let mut caption_para = Paragraph::new()
-            .add_run(label_run)
-            .add_run(seq_run)
-            .align(AlignmentType::Center);
+        let mut caption_para = match self.config.numbering.figure_format.as_str() {
+            "chapter" => {
+                // 章番号モード: "図X.Y" をプレーンテキストで生成
+                let label_run = Run::new()
+                    .add_text(format!("図{}", figure_number))
+                    .size(body_size)
+                    .fonts(caption_fonts.clone());
+                Paragraph::new()
+                    .add_run(label_run)
+                    .align(AlignmentType::Center)
+            }
+            _ => {
+                // 連番モード: Word SEQ フィールドを使用
+                let label_run = Run::new()
+                    .add_text("図")
+                    .size(body_size)
+                    .fonts(caption_fonts.clone());
+                let seq_run = Run::new()
+                    .add_field_char(FieldCharType::Begin, true)
+                    .add_instr_text(InstrText::Unsupported(
+                        " SEQ Figure \\* ARABIC ".to_string(),
+                    ))
+                    .add_field_char(FieldCharType::Separate, false)
+                    .add_text(&figure_number)
+                    .add_field_char(FieldCharType::End, false)
+                    .size(body_size)
+                    .fonts(caption_fonts.clone());
+                Paragraph::new()
+                    .add_run(label_run)
+                    .add_run(seq_run)
+                    .align(AlignmentType::Center)
+            }
+        };
 
         if !alt.is_empty() {
             let alt_run = Run::new()

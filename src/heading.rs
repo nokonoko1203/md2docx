@@ -69,6 +69,11 @@ impl HeadingManager {
         trimmed.to_string()
     }
 
+    /// 現在の H1 カウンタ値を返す。
+    pub fn current_h1_number(&self) -> u32 {
+        self.counters[0]
+    }
+
     fn increment(&mut self, level: u8) {
         let idx = (level as usize).saturating_sub(1).min(4);
         self.counters[idx] += 1;
