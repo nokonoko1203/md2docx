@@ -16,15 +16,15 @@ use crate::config::Config;
 // README.md の設定例も同様。変更時は 3 箇所を合わせて更新する。
 #[derive(Parser)]
 #[command(
-    name = "md2docx",
+    name = "mdd",
     version,
     about = "Markdown ファイルを Word (.docx) に変換する CLI ツール",
     after_long_help = "\
 使用例:
-  md2docx document.md                          入力と同名の .docx を生成
-  md2docx document.md -o report.docx           出力先を指定
-  md2docx document.md -c md2docx.toml          設定ファイルを指定
-  md2docx document.md -o out.docx -c my.toml   両方指定
+  mdd document.md                          入力と同名の .docx を生成
+  mdd document.md -o report.docx           出力先を指定
+  mdd document.md -c mdd.toml              設定ファイルを指定
+  mdd document.md -o out.docx -c my.toml   両方指定
 
 設定ファイル (TOML):
   省略時はデフォルト値が使われます。全項目省略可能。
@@ -41,6 +41,7 @@ use crate::config::Config;
   heading2 = 12.0               # 見出し2
   heading3 = 11.0               # 見出し3
   heading4 = 11.0               # 見出し4
+  heading5 = 10.5               # 見出し5
 
   [indent]                      # 単位: twip (1 twip = 1/20 pt, 210 twip ≒ 全角1文字)
   body_left       = 210         # 本文の左インデント
@@ -55,8 +56,12 @@ use crate::config::Config;
   level1 = \"■\"                # 箇条書きレベル1
   level2 = \"▲\"                # 箇条書きレベル2
 
+  [numbering]
+  figure_format = \"sequential\"   # 図番号の形式（sequential / chapter）
+  table_format  = \"sequential\"   # 表番号の形式（sequential / chapter）
+
 対応する Markdown 要素:
-  見出し (H1-H4, 自動採番)    段落                  箇条書き (ネスト対応)
+  見出し (H1-H5, 自動採番)    段落                  箇条書き (ネスト対応)
   番号付きリスト (ネスト対応)  表 (自動表番号付与)   コードブロック
   画像 (自動図番号付与)        水平線
   インライン: テキスト / コード / 太字 / 斜体 / リンク"

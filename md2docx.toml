@@ -12,6 +12,19 @@ heading3 = 11.0
 heading4 = 11.0
 heading5 = 10.5
 
+[indent]
+body_left = 210
+body_first_line = 210
+body_right = 210
+body_left_chars = 100
+heading4_left = 709
+heading4_hanging = 709
+
+[bullet]
+level0 = "●"
+level1 = "■"
+level2 = "▲"
+
 [numbering]
 figure_format = "chapter"
 table_format = "chapter"

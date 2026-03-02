@@ -155,6 +155,24 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
         .paragraph_property
         .numbering(NumberingId::new(HEADING_NUM_ID), IndentLevel::new(3));
 
+    // --- 見出し5 (id="5") ---
+    // basedOn=Normal, next=Normal
+    // keepNext, outlineLvl=4
+    // heading4 と同パターン（East Asia フォントのみ指定）
+    let heading5_fonts = RunFonts::new().east_asia(&config.fonts.heading_ja);
+
+    let mut heading5_style = Style::new("5", StyleType::Paragraph)
+        .name("heading 5")
+        .based_on("Normal")
+        .next("Normal")
+        .size(pt_to_half_point(config.sizes.heading5))
+        .bold()
+        .fonts(heading5_fonts)
+        .outline_lvl(4);
+    heading5_style.paragraph_property = heading5_style
+        .paragraph_property
+        .numbering(NumberingId::new(HEADING_NUM_ID), IndentLevel::new(4));
+
     // --- 見出し番号定義 (abstractNumId=8, numId=2) ---
     let mut abstract_numbering = AbstractNumbering::new(HEADING_ABSTRACT_NUM_ID)
         // Level 0: decimal, "%1.", indent left=420, hanging=420, pStyle="1"
@@ -211,15 +229,16 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
                 None,
             ),
         )
-        // Level 4-8: sample.docx 準拠（Word は 9 レベル必要）
+        // Level 4: decimalEnclosedCircle（丸数字 ① ② ...）, pStyle="5"
         .add_level(
             Level::new(
                 4,
                 Start::new(1),
-                NumberFormat::new("aiueoFullWidth"),
-                LevelText::new("(%5)"),
+                NumberFormat::new("decimalEnclosedCircle"),
+                LevelText::new("%5"),
                 LevelJc::new("left"),
             )
+            .paragraph_style("5")
             .indent(
                 Some(2100),
                 Some(SpecialIndentType::Hanging(420)),
@@ -346,6 +365,7 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
         .add_style(heading2_style)
         .add_style(heading3_style)
         .add_style(heading4_style)
+        .add_style(heading5_style)
         .add_style(bullet_style)
         .add_abstract_numbering(abstract_numbering)
         .add_abstract_numbering(bullet_abstract)

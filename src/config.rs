@@ -22,6 +22,8 @@ pub struct Config {
     pub indent: IndentConfig,
     #[serde(default)]
     pub bullet: BulletConfig,
+    #[serde(default)]
+    pub numbering: NumberingConfig,
 }
 
 #[derive(Debug, Deserialize)]
@@ -48,6 +50,8 @@ pub struct SizeConfig {
     pub heading3: f64,
     #[serde(default = "default_h4_size")]
     pub heading4: f64,
+    #[serde(default = "default_h5_size")]
+    pub heading5: f64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -93,6 +97,9 @@ fn default_h3_size() -> f64 {
 fn default_h4_size() -> f64 {
     11.0
 }
+fn default_h5_size() -> f64 {
+    10.5
+}
 
 fn default_indent_body_left() -> i32 {
     210
@@ -111,6 +118,30 @@ fn default_indent_heading4_left() -> i32 {
 }
 fn default_indent_heading4_hanging() -> i32 {
     709
+}
+
+#[derive(Debug, Deserialize)]
+pub struct NumberingConfig {
+    #[serde(default = "default_figure_format")]
+    pub figure_format: String,
+    #[serde(default = "default_table_format")]
+    pub table_format: String,
+}
+
+fn default_figure_format() -> String {
+    "sequential".to_string()
+}
+fn default_table_format() -> String {
+    "sequential".to_string()
+}
+
+impl Default for NumberingConfig {
+    fn default() -> Self {
+        Self {
+            figure_format: default_figure_format(),
+            table_format: default_table_format(),
+        }
+    }
 }
 
 fn default_bullet_level0() -> String {
@@ -142,6 +173,7 @@ impl Default for SizeConfig {
             heading2: default_h2_size(),
             heading3: default_h3_size(),
             heading4: default_h4_size(),
+            heading5: default_h5_size(),
         }
     }
 }
