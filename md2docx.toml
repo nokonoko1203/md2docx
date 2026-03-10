@@ -12,6 +12,17 @@ heading3 = 11.0
 heading4 = 11.0
 heading5 = 10.5
 
+[page]
+width = 11906
+height = 16838
+margin_top = 1985
+margin_right = 1701
+margin_bottom = 1701
+margin_left = 1701
+margin_header = 851
+margin_footer = 992
+margin_gutter = 0
+
 [indent]
 body_left = 210
 body_first_line = 210

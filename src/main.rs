@@ -43,6 +43,17 @@ use crate::config::Config;
   heading4 = 11.0               # 見出し4
   heading5 = 10.5               # 見出し5
 
+  [page]                        # 単位: twip
+  width         = 11906         # ページ幅 (既定: A4 縦)
+  height        = 16838         # ページ高さ
+  margin_top    = 1985          # 上余白
+  margin_right  = 1701          # 右余白
+  margin_bottom = 1701          # 下余白
+  margin_left   = 1701          # 左余白
+  margin_header = 851           # ヘッダー余白
+  margin_footer = 992           # フッター余白
+  margin_gutter = 0             # とじしろ
+
   [indent]                      # 単位: twip (1 twip = 1/20 pt, 210 twip ≒ 全角1文字)
   body_left       = 210         # 本文の左インデント
   body_first_line = 210         # 本文の字下げ

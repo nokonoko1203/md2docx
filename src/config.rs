@@ -19,6 +19,8 @@ pub struct Config {
     #[serde(default)]
     pub sizes: SizeConfig,
     #[serde(default)]
+    pub page: PageConfig,
+    #[serde(default)]
     pub indent: IndentConfig,
     #[serde(default)]
     pub bullet: BulletConfig,
@@ -52,6 +54,28 @@ pub struct SizeConfig {
     pub heading4: f64,
     #[serde(default = "default_h5_size")]
     pub heading5: f64,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct PageConfig {
+    #[serde(default = "default_page_width")]
+    pub width: u32,
+    #[serde(default = "default_page_height")]
+    pub height: u32,
+    #[serde(default = "default_page_margin_top")]
+    pub margin_top: i32,
+    #[serde(default = "default_page_margin_right")]
+    pub margin_right: i32,
+    #[serde(default = "default_page_margin_bottom")]
+    pub margin_bottom: i32,
+    #[serde(default = "default_page_margin_left")]
+    pub margin_left: i32,
+    #[serde(default = "default_page_margin_header")]
+    pub margin_header: i32,
+    #[serde(default = "default_page_margin_footer")]
+    pub margin_footer: i32,
+    #[serde(default = "default_page_margin_gutter")]
+    pub margin_gutter: i32,
 }
 
 #[derive(Debug, Deserialize)]
@@ -99,6 +123,34 @@ fn default_h4_size() -> f64 {
 }
 fn default_h5_size() -> f64 {
     10.5
+}
+
+fn default_page_width() -> u32 {
+    11_906
+}
+fn default_page_height() -> u32 {
+    16_838
+}
+fn default_page_margin_top() -> i32 {
+    1_985
+}
+fn default_page_margin_right() -> i32 {
+    1_701
+}
+fn default_page_margin_bottom() -> i32 {
+    1_701
+}
+fn default_page_margin_left() -> i32 {
+    1_701
+}
+fn default_page_margin_header() -> i32 {
+    851
+}
+fn default_page_margin_footer() -> i32 {
+    992
+}
+fn default_page_margin_gutter() -> i32 {
+    0
 }
 
 fn default_indent_body_left() -> i32 {
@@ -174,6 +226,22 @@ impl Default for SizeConfig {
             heading3: default_h3_size(),
             heading4: default_h4_size(),
             heading5: default_h5_size(),
+        }
+    }
+}
+
+impl Default for PageConfig {
+    fn default() -> Self {
+        Self {
+            width: default_page_width(),
+            height: default_page_height(),
+            margin_top: default_page_margin_top(),
+            margin_right: default_page_margin_right(),
+            margin_bottom: default_page_margin_bottom(),
+            margin_left: default_page_margin_left(),
+            margin_header: default_page_margin_header(),
+            margin_footer: default_page_margin_footer(),
+            margin_gutter: default_page_margin_gutter(),
         }
     }
 }

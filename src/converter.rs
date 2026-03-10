@@ -2,11 +2,15 @@ use std::path::Path;
 
 use anyhow::Result;
 use docx_rs::*;
+use image::GenericImageView;
 
-use crate::config::Config;
+use crate::config::{Config, PageConfig};
 use crate::heading::HeadingManager;
 use crate::ir::{Block, Inline, ListItem};
 use crate::styles;
+
+const EMU_PER_PIXEL: u64 = 9_525;
+const EMU_PER_TWIP: u64 = 635;
 
 pub fn convert_to_docx(blocks: &[Block], config: &Config, base_path: &Path) -> Result<Docx> {
     let mut ctx = ConvertContext::new(config, base_path);
@@ -14,6 +18,18 @@ pub fn convert_to_docx(blocks: &[Block], config: &Config, base_path: &Path) -> R
 
     // sample.docx 準拠のスタイル・番号定義を適用
     docx = styles::setup_document_styles(docx, config);
+    docx = docx
+        .page_size(config.page.width, config.page.height)
+        .page_margin(
+            PageMargin::new()
+                .top(config.page.margin_top)
+                .right(config.page.margin_right)
+                .bottom(config.page.margin_bottom)
+                .left(config.page.margin_left)
+                .header(config.page.margin_header)
+                .footer(config.page.margin_footer)
+                .gutter(config.page.margin_gutter),
+        );
 
     for block in blocks {
         docx = ctx.convert_block(docx, block);
@@ -443,9 +459,9 @@ impl<'a> ConvertContext<'a> {
             }
         };
 
-        // 画像をPNGに変換（docx-rsはPNG/JPEGをサポート）
-        let png_buf = match convert_to_png(&buf) {
-            Ok(b) => b,
+        // 画像をPNGに変換しつつ寸法を取得する
+        let (png_buf, width_px, height_px) = match convert_to_png_with_dimensions(&buf) {
+            Ok(result) => result,
             Err(e) => {
                 eprintln!("警告: 画像の変換に失敗しました: {} ({})", path, e);
                 let run = self.make_body_run(&format!("[画像: {}]", alt));
@@ -453,7 +469,8 @@ impl<'a> ConvertContext<'a> {
             }
         };
 
-        let pic = Pic::new(&png_buf);
+        let (width_emu, height_emu) = fit_image_to_body_width(width_px, height_px, &self.config.page);
+        let pic = Pic::new(&png_buf).size(width_emu, height_emu);
 
         let image_para = Paragraph::new()
             .add_run(Run::new().add_image(pic))
@@ -517,12 +534,30 @@ impl<'a> ConvertContext<'a> {
     }
 }
 
-/// 画像データをPNG形式に変換する
-fn convert_to_png(buf: &[u8]) -> Result<Vec<u8>> {
+/// 画像データをPNG形式に変換し、元のピクセル寸法も返す
+fn convert_to_png_with_dimensions(buf: &[u8]) -> Result<(Vec<u8>, u32, u32)> {
     let img = image::load_from_memory(buf)?;
+    let (width, height) = img.dimensions();
     let mut png_buf = std::io::Cursor::new(Vec::new());
     img.write_to(&mut png_buf, image::ImageFormat::Png)?;
-    Ok(png_buf.into_inner())
+    Ok((png_buf.into_inner(), width, height))
+}
+
+fn fit_image_to_body_width(width_px: u32, height_px: u32, page: &PageConfig) -> (u32, u32) {
+    let width_emu = width_px as u64 * EMU_PER_PIXEL;
+    let height_emu = height_px as u64 * EMU_PER_PIXEL;
+    let body_width_twip = page
+        .width
+        .saturating_sub(page.margin_left.max(0) as u32)
+        .saturating_sub(page.margin_right.max(0) as u32) as u64;
+    let max_width_emu = body_width_twip * EMU_PER_TWIP;
+
+    if width_emu <= max_width_emu {
+        return (width_emu as u32, height_emu as u32);
+    }
+
+    let scaled_height_emu = height_emu * max_width_emu / width_emu;
+    (max_width_emu as u32, scaled_height_emu as u32)
 }
 
 /// テキスト処理: 英日間スペースの削除
@@ -679,5 +714,33 @@ mod tests {
         assert_eq!(indents.len(), 2);
         assert_eq!(indents[0], Some(360));
         assert_eq!(indents[1], Some(720));
+    }
+
+    #[test]
+    fn shrinks_wide_images_to_body_width() {
+        let (width_emu, height_emu) =
+            fit_image_to_body_width(2532, 729, &Config::default().page);
+        assert_eq!(width_emu, 5_400_040);
+        assert!(height_emu < width_emu);
+    }
+
+    #[test]
+    fn keeps_small_images_original_size() {
+        let (width_emu, height_emu) =
+            fit_image_to_body_width(382, 376, &Config::default().page);
+        assert_eq!(width_emu, 3_638_550);
+        assert_eq!(height_emu, 3_581_400);
+    }
+
+    #[test]
+    fn uses_configured_page_width_for_image_scaling() {
+        let mut config = Config::default();
+        config.page.width = 8_000;
+        config.page.margin_left = 1_000;
+        config.page.margin_right = 1_000;
+
+        let (width_emu, height_emu) = fit_image_to_body_width(2532, 729, &config.page);
+        assert_eq!(width_emu, 3_810_000);
+        assert_eq!(height_emu, 1_096_954);
     }
 }
