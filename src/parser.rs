@@ -1,8 +1,11 @@
+use anyhow::{Result, bail};
 use pulldown_cmark::{Event, HeadingLevel, Options, Parser, Tag, TagEnd};
 
 use crate::ir::{Alignment, Block, Inline, ListItem};
 
-pub fn parse_markdown(input: &str) -> Vec<Block> {
+const PAGE_BREAK_DIRECTIVE: &str = r"\pagebreak";
+
+pub fn parse_markdown(input: &str) -> Result<Vec<Block>> {
     let mut options = Options::empty();
     options.insert(Options::ENABLE_TABLES);
     options.insert(Options::ENABLE_STRIKETHROUGH);
@@ -12,7 +15,9 @@ pub fn parse_markdown(input: &str) -> Vec<Block> {
     let events: Vec<Event> = parser.collect();
 
     let converter = EventConverter::new();
-    converter.convert(&events)
+    let blocks = converter.convert(&events);
+    validate_page_break_usage(&blocks)?;
+    Ok(blocks)
 }
 
 struct EventConverter {
@@ -178,11 +183,7 @@ impl EventConverter {
                 self.current_code_lang = match kind {
                     pulldown_cmark::CodeBlockKind::Fenced(lang) => {
                         let l = lang.to_string();
-                        if l.is_empty() {
-                            None
-                        } else {
-                            Some(l)
-                        }
+                        if l.is_empty() { None } else { Some(l) }
                     }
                     pulldown_cmark::CodeBlockKind::Indented => None,
                 };
@@ -208,7 +209,9 @@ impl EventConverter {
             }
             TagEnd::Paragraph => {
                 let content = self.inline_stack.pop().unwrap_or_default();
-                if !content.is_empty() {
+                if is_page_break_paragraph(&content) {
+                    self.add_block(Block::PageBreak);
+                } else if !content.is_empty() {
                     self.add_block(Block::Paragraph { content });
                 }
             }
@@ -271,11 +274,11 @@ impl EventConverter {
                 }
             }
             TagEnd::TableRow => {
-                if let Some(ref mut state) = self.table_state {
-                    if !state.in_header {
-                        let row = std::mem::take(&mut state.current_row);
-                        state.rows.push(row);
-                    }
+                if let Some(ref mut state) = self.table_state
+                    && !state.in_header
+                {
+                    let row = std::mem::take(&mut state.current_row);
+                    state.rows.push(row);
                 }
             }
             TagEnd::TableCell => {
@@ -337,6 +340,86 @@ impl EventConverter {
     }
 }
 
+fn is_page_break_paragraph(content: &[Inline]) -> bool {
+    matches!(content, [Inline::Text(text)] if text.trim() == PAGE_BREAK_DIRECTIVE)
+}
+
+fn validate_page_break_usage(blocks: &[Block]) -> Result<()> {
+    for block in blocks {
+        validate_block(block)?;
+    }
+    Ok(())
+}
+
+fn validate_block(block: &Block) -> Result<()> {
+    match block {
+        Block::Heading { content, .. } | Block::Paragraph { content } => {
+            validate_inlines(content)?;
+        }
+        Block::BulletList { items } | Block::OrderedList { items, .. } => {
+            for item in items {
+                validate_inlines(&item.content)?;
+                for child in &item.children {
+                    validate_block(child)?;
+                }
+            }
+        }
+        Block::Table { headers, rows, .. } => {
+            for cell in headers.iter().flatten() {
+                validate_inline(cell)?;
+            }
+            for row in rows {
+                for cell in row {
+                    validate_inlines(cell)?;
+                }
+            }
+        }
+        Block::CodeBlock { code, .. } => {
+            ensure_no_page_break_directive(code)?;
+        }
+        Block::Image { alt, .. } => {
+            ensure_no_page_break_directive(alt)?;
+        }
+        Block::BlockQuote { children } => {
+            for child in children {
+                validate_block(child)?;
+            }
+        }
+        Block::PageBreak | Block::ThematicBreak => {}
+    }
+    Ok(())
+}
+
+fn validate_inlines(inlines: &[Inline]) -> Result<()> {
+    for inline in inlines {
+        validate_inline(inline)?;
+    }
+    Ok(())
+}
+
+fn validate_inline(inline: &Inline) -> Result<()> {
+    match inline {
+        Inline::Text(text) | Inline::Code(text) => ensure_no_page_break_directive(text)?,
+        Inline::Bold(children) | Inline::Italic(children) => validate_inlines(children)?,
+        Inline::Link { text, url } => {
+            validate_inlines(text)?;
+            ensure_no_page_break_directive(url)?;
+        }
+        Inline::SoftBreak | Inline::HardBreak => {}
+    }
+    Ok(())
+}
+
+fn ensure_no_page_break_directive(text: &str) -> Result<()> {
+    if text.contains(PAGE_BREAK_DIRECTIVE) {
+        bail!(
+            "`{}`は段落単位で単独指定した場合のみ利用できます",
+            PAGE_BREAK_DIRECTIVE
+        );
+    }
+    Ok(())
+}
+
 fn heading_level_to_u8(level: &HeadingLevel) -> u8 {
     match level {
         HeadingLevel::H1 => 1,
@@ -354,7 +437,7 @@ mod tests {
 
     #[test]
     fn preserves_link_url_in_inline_ir() {
-        let blocks = parse_markdown("[Rust](https://www.rust-lang.org/)");
+        let blocks = parse_markdown("[Rust](https://www.rust-lang.org/)").unwrap();
         assert_eq!(blocks.len(), 1);
 
         match &blocks[0] {
@@ -372,7 +455,7 @@ mod tests {
 
     #[test]
     fn does_not_mix_urls_between_multiple_links() {
-        let blocks = parse_markdown("[A](https://a.example) [B](https://b.example)");
+        let blocks = parse_markdown("[A](https://a.example) [B](https://b.example)").unwrap();
         assert_eq!(blocks.len(), 1);
 
         match &blocks[0] {
@@ -394,5 +477,22 @@ mod tests {
             }
             other => panic!("unexpected block: {other:?}"),
         }
+    }
+
+    #[test]
+    fn parses_page_break_directive_as_dedicated_block() {
+        let blocks = parse_markdown("\\pagebreak").unwrap();
+        assert_eq!(blocks.len(), 1);
+        assert!(matches!(blocks[0], Block::PageBreak));
+    }
+
+    #[test]
+    fn rejects_page_break_directive_inside_regular_paragraph() {
+        let error = parse_markdown("before \\pagebreak after").unwrap_err();
+        assert!(
+            error
+                .to_string()
+                .contains(r"`\pagebreak`は段落単位で単独指定した場合のみ利用できます")
+        );
     }
 }

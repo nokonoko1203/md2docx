@@ -72,6 +72,7 @@ impl<'a> ConvertContext<'a> {
     fn convert_block(&mut self, docx: Docx, block: &Block) -> Docx {
         match block {
             Block::Heading { level, content } => self.convert_heading(docx, *level, content),
+            Block::PageBreak => self.convert_page_break(docx),
             Block::Paragraph { content } => self.convert_paragraph(docx, content),
             Block::BulletList { items } => self.convert_bullet_list(docx, items, 0),
             Block::OrderedList { items, start } => {
@@ -132,13 +133,22 @@ impl<'a> ConvertContext<'a> {
         docx.add_paragraph(para)
     }
 
+    fn convert_page_break(&self, docx: Docx) -> Docx {
+        let para = Paragraph::new().add_run(Run::new().add_break(BreakType::Page));
+        docx.add_paragraph(para)
+    }
+
     /// 図番号文字列を生成（chapter: "1.2", sequential: "2"）
     fn next_figure_number(&mut self) -> String {
         self.figure_seq += 1;
         self.figure_in_chapter += 1;
         match self.config.numbering.figure_format.as_str() {
             "chapter" => {
-                let ch = if self.chapter_number == 0 { 1 } else { self.chapter_number };
+                let ch = if self.chapter_number == 0 {
+                    1
+                } else {
+                    self.chapter_number
+                };
                 format!("{}.{}", ch, self.figure_in_chapter)
             }
             _ => format!("{}", self.figure_seq),
@@ -151,7 +161,11 @@ impl<'a> ConvertContext<'a> {
         self.table_in_chapter += 1;
         match self.config.numbering.table_format.as_str() {
             "chapter" => {
-                let ch = if self.chapter_number == 0 { 1 } else { self.chapter_number };
+                let ch = if self.chapter_number == 0 {
+                    1
+                } else {
+                    self.chapter_number
+                };
                 format!("{}.{}", ch, self.table_in_chapter)
             }
             _ => format!("{}", self.table_seq),
@@ -363,9 +377,7 @@ impl<'a> ConvertContext<'a> {
                     .fonts(caption_fonts.clone());
                 let seq_run = Run::new()
                     .add_field_char(FieldCharType::Begin, true)
-                    .add_instr_text(InstrText::Unsupported(
-                        " SEQ Table \\* ARABIC ".to_string(),
-                    ))
+                    .add_instr_text(InstrText::Unsupported(" SEQ Table \\* ARABIC ".to_string()))
                     .add_field_char(FieldCharType::Separate, false)
                     .add_text(&table_number)
                     .add_field_char(FieldCharType::End, false)
@@ -420,10 +432,9 @@ impl<'a> ConvertContext<'a> {
                 .iter()
                 .enumerate()
                 .map(|(index, cell_content)| {
-                    let mut para =
-                        Paragraph::new().align(table_alignment_to_paragraph_alignment(
-                            alignments.get(index),
-                        ));
+                    let mut para = Paragraph::new().align(table_alignment_to_paragraph_alignment(
+                        alignments.get(index),
+                    ));
                     for inline in cell_content {
                         para = self.add_inline_to_paragraph(para, inline, false);
                     }
@@ -441,14 +452,12 @@ impl<'a> ConvertContext<'a> {
             .layout(TableLayoutType::Fixed)
             .width(TABLE_WIDTH_PCT, WidthType::Pct)
             .set_grid(column_widths)
-            .margins(
-                TableCellMargins::new().margin(
-                    TABLE_CELL_PADDING_TWIP,
-                    TABLE_CELL_PADDING_TWIP,
-                    TABLE_CELL_PADDING_TWIP,
-                    TABLE_CELL_PADDING_TWIP,
-                ),
-            );
+            .margins(TableCellMargins::new().margin(
+                TABLE_CELL_PADDING_TWIP,
+                TABLE_CELL_PADDING_TWIP,
+                TABLE_CELL_PADDING_TWIP,
+                TABLE_CELL_PADDING_TWIP,
+            ));
         docx.add_table(table)
     }
 
@@ -501,7 +510,8 @@ impl<'a> ConvertContext<'a> {
             }
         };
 
-        let (width_emu, height_emu) = fit_image_to_body_width(width_px, height_px, &self.config.page);
+        let (width_emu, height_emu) =
+            fit_image_to_body_width(width_px, height_px, &self.config.page);
         let pic = Pic::new(&png_buf).size(width_emu, height_emu);
 
         let image_para = Paragraph::new()
@@ -741,6 +751,14 @@ mod tests {
     }
 
     #[test]
+    fn converts_page_break_block_to_word_page_break() {
+        let docx =
+            convert_to_docx(&[Block::PageBreak], &Config::default(), Path::new(".")).unwrap();
+        let xml = String::from_utf8(docx.document.build()).unwrap();
+        assert!(xml.contains(r#"<w:br w:type="page" />"#));
+    }
+
+    #[test]
     fn indents_nested_ordered_lists_by_depth() {
         let nested = Block::OrderedList {
             start: 1,
@@ -776,16 +794,14 @@ mod tests {
 
     #[test]
     fn shrinks_wide_images_to_body_width() {
-        let (width_emu, height_emu) =
-            fit_image_to_body_width(2532, 729, &Config::default().page);
+        let (width_emu, height_emu) = fit_image_to_body_width(2532, 729, &Config::default().page);
         assert_eq!(width_emu, 5_400_040);
         assert!(height_emu < width_emu);
     }
 
     #[test]
     fn keeps_small_images_original_size() {
-        let (width_emu, height_emu) =
-            fit_image_to_body_width(382, 376, &Config::default().page);
+        let (width_emu, height_emu) = fit_image_to_body_width(382, 376, &Config::default().page);
         assert_eq!(width_emu, 3_638_550);
         assert_eq!(height_emu, 3_581_400);
     }
@@ -822,7 +838,9 @@ mod tests {
         assert!(xml.contains(r#"<w:tblW w:w="5000" w:type="pct" />"#));
         assert!(xml.contains(r#"<w:tblLayout w:type="fixed" />"#));
         assert!(xml.contains(r#"<w:tblCellMar><w:top w:w="80" w:type="dxa" /><w:left w:w="80" w:type="dxa" /><w:bottom w:w="80" w:type="dxa" /><w:right w:w="80" w:type="dxa" /></w:tblCellMar>"#));
-        assert!(xml.contains(r#"<w:gridCol w:w="4252" w:type="dxa" /><w:gridCol w:w="4252" w:type="dxa" />"#));
+        assert!(xml.contains(
+            r#"<w:gridCol w:w="4252" w:type="dxa" /><w:gridCol w:w="4252" w:type="dxa" />"#
+        ));
         assert!(xml.contains(r#"<w:jc w:val="center" />"#));
         assert!(xml.contains(r#"<w:jc w:val="right" />"#));
     }

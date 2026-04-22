@@ -21,6 +21,7 @@ pub enum Block {
         level: u8,
         content: Vec<Inline>,
     },
+    PageBreak,
     Paragraph {
         content: Vec<Inline>,
     },

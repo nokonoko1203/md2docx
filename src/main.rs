@@ -74,7 +74,7 @@ use crate::config::Config;
 対応する Markdown 要素:
   見出し (H1-H5, 自動採番)    段落                  箇条書き (ネスト対応)
   番号付きリスト (ネスト対応)  表 (自動表番号付与)   コードブロック
-  画像 (自動図番号付与)        水平線
+  画像 (自動図番号付与)        改ページ (`\\pagebreak`)   水平線
   インライン: テキスト / コード / 太字 / 斜体 / リンク"
 )]
 struct Cli {
@@ -116,7 +116,8 @@ fn main() -> Result<()> {
     let base_path = input_path.parent().unwrap_or_else(|| Path::new("."));
 
     // Markdown → IR
-    let blocks = parser::parse_markdown(&markdown);
+    let blocks = parser::parse_markdown(&markdown)
+        .with_context(|| format!("Markdownの解釈に失敗: {}", input_path.display()))?;
 
     // IR → docx
     let docx = converter::convert_to_docx(&blocks, &config, base_path)?;
