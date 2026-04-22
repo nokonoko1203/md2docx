@@ -108,10 +108,10 @@ impl HeadingManager {
         match level {
             1 => {
                 // "8 タイトル" → "8"
-                if let Some(num_str) = trimmed.split_whitespace().next() {
-                    if num_str.parse::<u32>().is_ok() {
-                        return Some(num_str.to_string());
-                    }
+                if let Some(num_str) = trimmed.split_whitespace().next()
+                    && num_str.parse::<u32>().is_ok()
+                {
+                    return Some(num_str.to_string());
                 }
                 None
             }
@@ -140,12 +140,12 @@ impl HeadingManager {
             }
             4 => {
                 // "(1) タイトル" → "(1)"
-                if trimmed.starts_with('(') {
-                    if let Some(end) = trimmed.find(')') {
-                        let inner = &trimmed[1..end];
-                        if inner.parse::<u32>().is_ok() {
-                            return Some(format!("({})", inner));
-                        }
+                if trimmed.starts_with('(')
+                    && let Some(end) = trimmed.find(')')
+                {
+                    let inner = &trimmed[1..end];
+                    if inner.parse::<u32>().is_ok() {
+                        return Some(format!("({})", inner));
                     }
                 }
                 None
@@ -174,30 +174,30 @@ impl HeadingManager {
             }
             2 => {
                 let parts: Vec<&str> = number.split('.').collect();
-                if parts.len() == 2 {
-                    if let (Ok(a), Ok(b)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>()) {
-                        self.counters[0] = a;
-                        self.counters[1] = b;
-                        for i in 2..5 {
-                            self.counters[i] = 0;
-                        }
+                if parts.len() == 2
+                    && let (Ok(a), Ok(b)) = (parts[0].parse::<u32>(), parts[1].parse::<u32>())
+                {
+                    self.counters[0] = a;
+                    self.counters[1] = b;
+                    for i in 2..5 {
+                        self.counters[i] = 0;
                     }
                 }
             }
             3 => {
                 let parts: Vec<&str> = number.split('.').collect();
-                if parts.len() == 3 {
-                    if let (Ok(a), Ok(b), Ok(c)) = (
+                if parts.len() == 3
+                    && let (Ok(a), Ok(b), Ok(c)) = (
                         parts[0].parse::<u32>(),
                         parts[1].parse::<u32>(),
                         parts[2].parse::<u32>(),
-                    ) {
-                        self.counters[0] = a;
-                        self.counters[1] = b;
-                        self.counters[2] = c;
-                        for i in 3..5 {
-                            self.counters[i] = 0;
-                        }
+                    )
+                {
+                    self.counters[0] = a;
+                    self.counters[1] = b;
+                    self.counters[2] = c;
+                    for i in 3..5 {
+                        self.counters[i] = 0;
                     }
                 }
             }
