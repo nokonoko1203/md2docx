@@ -200,7 +200,12 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
                 LevelJc::new("left"),
             )
             .paragraph_style("1")
-            .indent(Some(420), Some(SpecialIndentType::Hanging(420)), None, None),
+            .indent(
+                Some(config.indent.heading1_left),
+                Some(SpecialIndentType::Hanging(config.indent.heading1_hanging)),
+                None,
+                None,
+            ),
         )
         // Level 1: decimal, "%1.%2.", indent left=612, hanging=612, pStyle="2"
         .add_level(
@@ -212,7 +217,12 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
                 LevelJc::new("left"),
             )
             .paragraph_style("2")
-            .indent(Some(612), Some(SpecialIndentType::Hanging(612)), None, None),
+            .indent(
+                Some(config.indent.heading2_left),
+                Some(SpecialIndentType::Hanging(config.indent.heading2_hanging)),
+                None,
+                None,
+            ),
         )
         // Level 2: decimal, "%1.%2.%3", indent left=783, hanging=783, pStyle="3"
         .add_level(
@@ -224,7 +234,12 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
                 LevelJc::new("left"),
             )
             .paragraph_style("3")
-            .indent(Some(783), Some(SpecialIndentType::Hanging(783)), None, None),
+            .indent(
+                Some(config.indent.heading3_left),
+                Some(SpecialIndentType::Hanging(config.indent.heading3_hanging)),
+                None,
+                None,
+            ),
         )
         // Level 3: decimal, "（%4）", indent left=709, hanging=709, pStyle="4"
         // Style 4 のインデント定義に合わせる
@@ -255,8 +270,8 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
             )
             .paragraph_style("5")
             .indent(
-                Some(2100),
-                Some(SpecialIndentType::Hanging(420)),
+                Some(config.indent.heading5_left),
+                Some(SpecialIndentType::Hanging(config.indent.heading5_hanging)),
                 None,
                 None,
             ),
@@ -270,8 +285,8 @@ pub fn setup_document_styles(docx: Docx, config: &Config) -> Docx {
                 LevelJc::new("left"),
             )
             .indent(
-                Some(2520),
-                Some(SpecialIndentType::Hanging(420)),
+                Some(config.indent.heading6_left),
+                Some(SpecialIndentType::Hanging(config.indent.heading6_hanging)),
                 None,
                 None,
             ),
@@ -403,5 +418,55 @@ mod tests {
 
         assert!(xml.contains(r#"<w:spacing w:before="480" w:after="240" />"#));
         assert!(xml.contains(r#"<w:spacing w:before="360" w:after="160" />"#));
+    }
+
+    #[test]
+    fn heading_numberings_use_shallow_indent_for_levels_five_and_six() {
+        let xml = String::from_utf8(
+            setup_document_styles(Docx::new(), &Config::default())
+                .build()
+                .numberings,
+        )
+        .unwrap();
+
+        assert_eq!(xml.matches(r#"w:left="709""#).count(), 3);
+        assert_eq!(xml.matches(r#"w:hanging="709""#).count(), 3);
+    }
+
+    #[test]
+    fn heading_numberings_follow_configured_indents_for_levels_one_to_six() {
+        let mut config = Config::default();
+        config.indent.heading1_left = 401;
+        config.indent.heading1_hanging = 402;
+        config.indent.heading2_left = 501;
+        config.indent.heading2_hanging = 502;
+        config.indent.heading3_left = 601;
+        config.indent.heading3_hanging = 602;
+        config.indent.heading4_left = 701;
+        config.indent.heading4_hanging = 702;
+        config.indent.heading5_left = 801;
+        config.indent.heading5_hanging = 802;
+        config.indent.heading6_left = 901;
+        config.indent.heading6_hanging = 902;
+
+        let xml = String::from_utf8(
+            setup_document_styles(Docx::new(), &config)
+                .build()
+                .numberings,
+        )
+        .unwrap();
+
+        assert!(xml.contains(r#"w:left="401""#));
+        assert!(xml.contains(r#"w:hanging="402""#));
+        assert!(xml.contains(r#"w:left="501""#));
+        assert!(xml.contains(r#"w:hanging="502""#));
+        assert!(xml.contains(r#"w:left="601""#));
+        assert!(xml.contains(r#"w:hanging="602""#));
+        assert!(xml.contains(r#"w:left="701""#));
+        assert!(xml.contains(r#"w:hanging="702""#));
+        assert!(xml.contains(r#"w:left="801""#));
+        assert!(xml.contains(r#"w:hanging="802""#));
+        assert!(xml.contains(r#"w:left="901""#));
+        assert!(xml.contains(r#"w:hanging="902""#));
     }
 }

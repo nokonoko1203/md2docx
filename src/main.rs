@@ -61,8 +61,18 @@ use crate::config::Config;
   body_first_line = 210         # 本文の字下げ
   body_right      = 210         # 本文の右インデント
   body_left_chars = 100         # 本文の左インデント (文字数×100)
+  heading1_left   = 420         # 見出し1の左インデント
+  heading1_hanging = 420        # 見出し1のぶら下げインデント
+  heading2_left   = 612         # 見出し2の左インデント
+  heading2_hanging = 612        # 見出し2のぶら下げインデント
+  heading3_left   = 783         # 見出し3の左インデント
+  heading3_hanging = 783        # 見出し3のぶら下げインデント
   heading4_left    = 709        # 見出し4の左インデント
   heading4_hanging = 709        # 見出し4のぶら下げインデント
+  heading5_left   = 709         # 見出し5の左インデント
+  heading5_hanging = 709        # 見出し5のぶら下げインデント
+  heading6_left   = 709         # 見出し6の左インデント
+  heading6_hanging = 709        # 見出し6のぶら下げインデント
 
   [bullet]
   level0 = \"●\"                # 箇条書きレベル0

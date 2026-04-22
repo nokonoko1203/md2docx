@@ -92,10 +92,30 @@ pub struct IndentConfig {
     pub body_right: i32,
     #[serde(default = "default_indent_body_left_chars")]
     pub body_left_chars: i32,
+    #[serde(default = "default_indent_heading1_left")]
+    pub heading1_left: i32,
+    #[serde(default = "default_indent_heading1_hanging")]
+    pub heading1_hanging: i32,
+    #[serde(default = "default_indent_heading2_left")]
+    pub heading2_left: i32,
+    #[serde(default = "default_indent_heading2_hanging")]
+    pub heading2_hanging: i32,
+    #[serde(default = "default_indent_heading3_left")]
+    pub heading3_left: i32,
+    #[serde(default = "default_indent_heading3_hanging")]
+    pub heading3_hanging: i32,
     #[serde(default = "default_indent_heading4_left")]
     pub heading4_left: i32,
     #[serde(default = "default_indent_heading4_hanging")]
     pub heading4_hanging: i32,
+    #[serde(default = "default_indent_heading5_left")]
+    pub heading5_left: i32,
+    #[serde(default = "default_indent_heading5_hanging")]
+    pub heading5_hanging: i32,
+    #[serde(default = "default_indent_heading6_left")]
+    pub heading6_left: i32,
+    #[serde(default = "default_indent_heading6_hanging")]
+    pub heading6_hanging: i32,
 }
 
 fn default_body_ja() -> String {
@@ -175,10 +195,40 @@ fn default_indent_body_right() -> i32 {
 fn default_indent_body_left_chars() -> i32 {
     100
 }
+fn default_indent_heading1_left() -> i32 {
+    420
+}
+fn default_indent_heading1_hanging() -> i32 {
+    420
+}
+fn default_indent_heading2_left() -> i32 {
+    612
+}
+fn default_indent_heading2_hanging() -> i32 {
+    612
+}
+fn default_indent_heading3_left() -> i32 {
+    783
+}
+fn default_indent_heading3_hanging() -> i32 {
+    783
+}
 fn default_indent_heading4_left() -> i32 {
     709
 }
 fn default_indent_heading4_hanging() -> i32 {
+    709
+}
+fn default_indent_heading5_left() -> i32 {
+    709
+}
+fn default_indent_heading5_hanging() -> i32 {
+    709
+}
+fn default_indent_heading6_left() -> i32 {
+    709
+}
+fn default_indent_heading6_hanging() -> i32 {
     709
 }
 
@@ -265,8 +315,18 @@ impl Default for IndentConfig {
             body_first_line: default_indent_body_first_line(),
             body_right: default_indent_body_right(),
             body_left_chars: default_indent_body_left_chars(),
+            heading1_left: default_indent_heading1_left(),
+            heading1_hanging: default_indent_heading1_hanging(),
+            heading2_left: default_indent_heading2_left(),
+            heading2_hanging: default_indent_heading2_hanging(),
+            heading3_left: default_indent_heading3_left(),
+            heading3_hanging: default_indent_heading3_hanging(),
             heading4_left: default_indent_heading4_left(),
             heading4_hanging: default_indent_heading4_hanging(),
+            heading5_left: default_indent_heading5_left(),
+            heading5_hanging: default_indent_heading5_hanging(),
+            heading6_left: default_indent_heading6_left(),
+            heading6_hanging: default_indent_heading6_hanging(),
         }
     }
 }

@@ -30,8 +30,18 @@ body_left = 210
 body_first_line = 210
 body_right = 210
 body_left_chars = 100
+heading1_left = 420
+heading1_hanging = 420
+heading2_left = 612
+heading2_hanging = 612
+heading3_left = 783
+heading3_hanging = 783
 heading4_left = 709
 heading4_hanging = 709
+heading5_left = 709
+heading5_hanging = 709
+heading6_left = 709
+heading6_hanging = 709
 
 [bullet]
 level0 = "●"

@@ -120,8 +120,18 @@ body_left = 210
 body_first_line = 210
 body_right = 210
 body_left_chars = 100
+heading1_left = 420
+heading1_hanging = 420
+heading2_left = 612
+heading2_hanging = 612
+heading3_left = 783
+heading3_hanging = 783
 heading4_left = 709
 heading4_hanging = 709
+heading5_left = 709
+heading5_hanging = 709
+heading6_left = 709
+heading6_hanging = 709
 
 [bullet]
 level0 = "●"
@@ -137,7 +147,7 @@ fontsセクションでは本文と見出しそれぞれの日本語フォント
 
 pageセクションではページサイズと余白をtwip単位で設定する。既定値はA4縦相当で、画像の最大幅もこのページ幅と左右余白から自動計算される。そのため、横長の画像でも本文幅に収まる。レイアウトを変えたい場合は `width` と `margin_left` / `margin_right` を主に調整すればよい。
 
-indentセクションのtwipはWordの内部単位で、1twipは1/20pt。210twipがおおむね全角1文字分にあたる。body_left_charsはWord独自の文字数単位で、100が1文字に相当する。
+indentセクションのtwipはWordの内部単位で、1twipは1/20pt。210twipがおおむね全角1文字分にあたる。body_left_charsはWord独自の文字数単位で、100が1文字に相当する。見出し1〜6の左インデントとぶら下げインデントも個別に変更できる。
 
 bulletセクションで箇条書きの各レベルに使う行頭文字を変更できる。
 
