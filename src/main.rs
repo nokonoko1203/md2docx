@@ -37,6 +37,8 @@ use crate::config::Config;
 
   [sizes]                       # 単位: pt
   body     = 10.5               # 本文
+  table_body = 9.5              # 表本文
+  table_header = 9.5            # 表ヘッダー
   heading1 = 14.0               # 見出し1
   heading2 = 12.0               # 見出し2
   heading3 = 11.0               # 見出し3

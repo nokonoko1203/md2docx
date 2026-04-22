@@ -55,6 +55,13 @@ struct ConvertContext<'a> {
     table_seq: u32,
 }
 
+#[derive(Clone, Copy)]
+enum InlineStyle {
+    Body,
+    TableBody,
+    TableHeader,
+}
+
 impl<'a> ConvertContext<'a> {
     fn new(config: &'a Config, base_path: &'a Path) -> Self {
         Self {
@@ -174,24 +181,30 @@ impl<'a> ConvertContext<'a> {
 
     fn convert_paragraph(&self, docx: Docx, content: &[Inline]) -> Docx {
         let para = self
-            .build_paragraph(content, false)
+            .build_paragraph(content, false, InlineStyle::Body)
             .style(styles::BODY_TEXT_STYLE_ID);
         docx.add_paragraph(para)
     }
 
-    fn build_paragraph(&self, content: &[Inline], bold: bool) -> Paragraph {
+    fn build_paragraph(&self, content: &[Inline], bold: bool, style: InlineStyle) -> Paragraph {
         let mut para = Paragraph::new();
         for inline in content {
-            para = self.add_inline_to_paragraph(para, inline, bold);
+            para = self.add_inline_to_paragraph(para, inline, bold, style);
         }
         para
     }
 
-    fn add_inline_to_paragraph(&self, para: Paragraph, inline: &Inline, bold: bool) -> Paragraph {
+    fn add_inline_to_paragraph(
+        &self,
+        para: Paragraph,
+        inline: &Inline,
+        bold: bool,
+        style: InlineStyle,
+    ) -> Paragraph {
         match inline {
             Inline::Text(text) => {
                 let processed = process_text(text);
-                let mut run = self.make_body_run(&processed);
+                let mut run = self.make_run(&processed, style);
                 if bold {
                     run = run.bold();
                 }
@@ -199,7 +212,7 @@ impl<'a> ConvertContext<'a> {
             }
             Inline::Code(code) => {
                 let display = format!("「{}」", code);
-                let mut run = self.make_body_run(&display);
+                let mut run = self.make_run(&display, style);
                 if bold {
                     run = run.bold();
                 }
@@ -209,14 +222,14 @@ impl<'a> ConvertContext<'a> {
                 let mut p = para;
                 for child in children {
                     // Bold/Italic → プレーンテキスト化（計画に従いWordスタイルとしてのbold/italicは使わない）
-                    p = self.add_inline_to_paragraph(p, child, bold);
+                    p = self.add_inline_to_paragraph(p, child, bold, style);
                 }
                 p
             }
             Inline::Italic(children) => {
                 let mut p = para;
                 for child in children {
-                    p = self.add_inline_to_paragraph(p, child, bold);
+                    p = self.add_inline_to_paragraph(p, child, bold, style);
                 }
                 p
             }
@@ -225,7 +238,7 @@ impl<'a> ConvertContext<'a> {
                 let display = if label.is_empty() { url.clone() } else { label };
                 let processed = process_text(&display);
 
-                let mut run = self.make_body_run(&processed);
+                let mut run = self.make_run(&processed, style);
                 if bold {
                     run = run.bold();
                 }
@@ -238,21 +251,42 @@ impl<'a> ConvertContext<'a> {
 
                 para.add_hyperlink(hyperlink)
             }
-            Inline::SoftBreak => para.add_run(self.make_body_run(" ")),
+            Inline::SoftBreak => para.add_run(self.make_run(" ", style)),
             Inline::HardBreak => para.add_run(Run::new().add_break(BreakType::TextWrapping)),
         }
     }
 
-    fn make_body_run(&self, text: &str) -> Run {
-        let fonts = RunFonts::new()
-            .ascii(&self.config.fonts.body_en)
-            .hi_ansi(&self.config.fonts.body_en)
-            .east_asia(&self.config.fonts.body_ja)
-            .cs(&self.config.fonts.body_en);
+    fn make_run(&self, text: &str, style: InlineStyle) -> Run {
+        let (fonts, size) = match style {
+            InlineStyle::Body => (
+                RunFonts::new()
+                    .ascii(&self.config.fonts.body_en)
+                    .hi_ansi(&self.config.fonts.body_en)
+                    .east_asia(&self.config.fonts.body_ja)
+                    .cs(&self.config.fonts.body_en),
+                self.config.sizes.body,
+            ),
+            InlineStyle::TableBody => (
+                RunFonts::new()
+                    .ascii(&self.config.fonts.body_en)
+                    .hi_ansi(&self.config.fonts.body_en)
+                    .east_asia(&self.config.fonts.body_ja)
+                    .cs(&self.config.fonts.body_en),
+                self.config.sizes.table_body,
+            ),
+            InlineStyle::TableHeader => (
+                RunFonts::new()
+                    .ascii(&self.config.fonts.heading_en)
+                    .hi_ansi(&self.config.fonts.heading_en)
+                    .east_asia(&self.config.fonts.heading_ja)
+                    .cs(&self.config.fonts.heading_en),
+                self.config.sizes.table_header,
+            ),
+        };
 
         Run::new()
             .add_text(text)
-            .size(styles::pt_to_half_point(self.config.sizes.body))
+            .size(styles::pt_to_half_point(size))
             .fonts(fonts)
     }
 
@@ -267,7 +301,7 @@ impl<'a> ConvertContext<'a> {
             );
 
             for inline in &item.content {
-                para = self.add_inline_to_paragraph(para, inline, false);
+                para = self.add_inline_to_paragraph(para, inline, false, InlineStyle::Body);
             }
             d = d.add_paragraph(para);
 
@@ -308,11 +342,11 @@ impl<'a> ConvertContext<'a> {
 
             let mut para = Paragraph::new().indent(Some(indent_twip), None, None, None);
             let prefix = format!("{}. ", num);
-            let prefix_run = self.make_body_run(&prefix);
+            let prefix_run = self.make_run(&prefix, InlineStyle::Body);
             para = para.add_run(prefix_run);
 
             for inline in &item.content {
-                para = self.add_inline_to_paragraph(para, inline, false);
+                para = self.add_inline_to_paragraph(para, inline, false, InlineStyle::Body);
             }
             d = d.add_paragraph(para);
 
@@ -407,15 +441,9 @@ impl<'a> ConvertContext<'a> {
             .map(|(index, cell_content)| {
                 let mut para = Paragraph::new().align(AlignmentType::Center);
                 for inline in cell_content {
-                    para = self.add_inline_to_paragraph(para, inline, true);
+                    para =
+                        self.add_inline_to_paragraph(para, inline, true, InlineStyle::TableHeader);
                 }
-                // ヘッダーはゴシック体・太字
-                let fonts = RunFonts::new()
-                    .ascii(&self.config.fonts.heading_en)
-                    .hi_ansi(&self.config.fonts.heading_en)
-                    .east_asia(&self.config.fonts.heading_ja)
-                    .cs(&self.config.fonts.heading_en);
-                para = para.fonts(fonts).bold();
                 TableCell::new()
                     .width(column_widths[index], WidthType::Dxa)
                     .vertical_align(VAlignType::Center)
@@ -436,7 +464,12 @@ impl<'a> ConvertContext<'a> {
                         alignments.get(index),
                     ));
                     for inline in cell_content {
-                        para = self.add_inline_to_paragraph(para, inline, false);
+                        para = self.add_inline_to_paragraph(
+                            para,
+                            inline,
+                            false,
+                            InlineStyle::TableBody,
+                        );
                     }
                     TableCell::new()
                         .width(column_widths[index], WidthType::Dxa)
@@ -495,7 +528,7 @@ impl<'a> ConvertContext<'a> {
                     e
                 );
                 // 画像が見つからない場合はaltテキストのみ表示
-                let run = self.make_body_run(&format!("[画像: {}]", alt));
+                let run = self.make_run(&format!("[画像: {}]", alt), InlineStyle::Body);
                 return docx.add_paragraph(Paragraph::new().add_run(run));
             }
         };
@@ -505,7 +538,7 @@ impl<'a> ConvertContext<'a> {
             Ok(result) => result,
             Err(e) => {
                 eprintln!("警告: 画像の変換に失敗しました: {} ({})", path, e);
-                let run = self.make_body_run(&format!("[画像: {}]", alt));
+                let run = self.make_run(&format!("[画像: {}]", alt), InlineStyle::Body);
                 return docx.add_paragraph(Paragraph::new().add_run(run));
             }
         };
@@ -843,5 +876,27 @@ mod tests {
         ));
         assert!(xml.contains(r#"<w:jc w:val="center" />"#));
         assert!(xml.contains(r#"<w:jc w:val="right" />"#));
+        assert!(xml.contains(r#"<w:sz w:val="19" />"#));
+    }
+
+    #[test]
+    fn uses_configured_table_font_sizes() {
+        let blocks = vec![Block::Table {
+            headers: vec![vec![Inline::Text("Header".to_string())]],
+            rows: vec![vec![vec![Inline::Text("Body".to_string())]]],
+            alignments: vec![crate::ir::Alignment::Left],
+        }];
+
+        let mut config = Config::default();
+        config.sizes.table_header = 8.5;
+        config.sizes.table_body = 8.0;
+
+        let docx = convert_to_docx(&blocks, &config, Path::new(".")).unwrap();
+        let xml = String::from_utf8(docx.document.build()).unwrap();
+
+        assert!(xml.contains(r#"<w:t xml:space="preserve">Header</w:t>"#));
+        assert!(xml.contains(r#"<w:t xml:space="preserve">Body</w:t>"#));
+        assert!(xml.contains(r#"<w:sz w:val="17" />"#));
+        assert!(xml.contains(r#"<w:sz w:val="16" />"#));
     }
 }

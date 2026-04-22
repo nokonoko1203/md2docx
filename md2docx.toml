@@ -6,6 +6,8 @@ heading_en = "Century"
 
 [sizes]
 body = 10.5
+table_body = 9.5
+table_header = 9.5
 heading1 = 14.0
 heading2 = 12.0
 heading3 = 11.0

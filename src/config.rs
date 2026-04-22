@@ -44,6 +44,10 @@ pub struct FontConfig {
 pub struct SizeConfig {
     #[serde(default = "default_body_size")]
     pub body: f64,
+    #[serde(default = "default_table_body_size")]
+    pub table_body: f64,
+    #[serde(default = "default_table_header_size")]
+    pub table_header: f64,
     #[serde(default = "default_h1_size")]
     pub heading1: f64,
     #[serde(default = "default_h2_size")]
@@ -108,6 +112,12 @@ fn default_heading_en() -> String {
 }
 fn default_body_size() -> f64 {
     10.5
+}
+fn default_table_body_size() -> f64 {
+    9.5
+}
+fn default_table_header_size() -> f64 {
+    9.5
 }
 fn default_h1_size() -> f64 {
     14.0
@@ -221,6 +231,8 @@ impl Default for SizeConfig {
     fn default() -> Self {
         Self {
             body: default_body_size(),
+            table_body: default_table_body_size(),
+            table_header: default_table_header_size(),
             heading1: default_h1_size(),
             heading2: default_h2_size(),
             heading3: default_h3_size(),
